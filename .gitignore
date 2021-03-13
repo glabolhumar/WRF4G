@@ -1,3 +1,5 @@
+wrf4g.egg-info/
+.wrf4g/
 *.o
 *.lo
 *.la
