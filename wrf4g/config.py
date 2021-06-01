@@ -42,7 +42,7 @@ def get_conf( directory = './' ):
     if not exists( exp_file ):
         raise Exception("'%s' does not exist" % exp_file )
     make_writeable( exp_file )
-    logging.debug( "Reading '%s' file" % exp_file )
+    logger.debug( "Reading '%s' file" % exp_file )
     exp_env = VarEnv( exp_file )
     exp_cfg_dict = dict()
     exp_cfg_dict[ 'default' ] = exp_env.defaults()
@@ -77,7 +77,7 @@ class SanityCheck():
         self.cfg           = cfg
         self.cfg_final     = copy.deepcopy( cfg )
         self.total_errors  = 0
-        logging.info( "Checking the variables in experiment.wrf4g file"  )
+        logger.info( "Checking the variables in experiment.wrf4g file"  )
         
     def experiment_name(self) :
         """
@@ -86,7 +86,7 @@ class SanityCheck():
         if self.cfg[ 'default' ].get( 'name' ) :
             validate_name( self.cfg[ 'default' ][ 'name' ] )
         else :
-            logging.error( "ERROR: 'name' variable is mandatory" )
+            logger.error( "ERROR: 'name' variable is mandatory" )
             self.total_errors += 1
   
     _YES_NO_VARIABLES = ( 'clean_after_run', 'save_wps', 'parallel_real',
@@ -105,7 +105,7 @@ class SanityCheck():
                     elif val in ( 'n', 'no' ) :
                         self.cfg_final[ section ][ key ] = 'no'            
                     else :
-                        logging.error( "ERROR: '%s' variable should be 'yes' or 'no'" % key ) 
+                        logger.error( "ERROR: '%s' variable should be 'yes' or 'no'" % key ) 
                         self.total_errors += 1
 
     def log_level(self):
@@ -115,7 +115,7 @@ class SanityCheck():
         for section in list( self.cfg.keys( ) ) :
             if self.cfg[ section ].get( 'log_level' ) and section.startswith( 'ensemble/' ) :
                 if not self.cfg[ section ].get( 'log_level' ) in [ 'ERROR', 'WARNING', 'INFO', 'DEBUG' ] :
-                    logging.error( "log_level variale has to be ERROR, WARNING, INFO or DEBUG" )
+                    logger.error( "log_level variale has to be ERROR, WARNING, INFO or DEBUG" )
                     self.total_errors += 1
 
     def calendar(self):
@@ -125,7 +125,7 @@ class SanityCheck():
         for section in list( self.cfg.keys( ) ) :
             if self.cfg[ section ].get( 'calendar' ) and section.startswith( 'ensemble/' ) :
                 if not self.cfg[ section ][ 'calendar' ] in Calendar.available_types :
-                    logging.error( "'%s' calendar type is not avariable" % self.cfg[ default ][ 'calendar' ] )
+                    logger.error( "'%s' calendar type is not avariable" % self.cfg[ default ][ 'calendar' ] )
                     self.total_errors += 1
     
     def dates(self):
@@ -145,7 +145,7 @@ class SanityCheck():
                     start_date = datewrf2datetime( elems[ 0 ] )
                     end_date   = datewrf2datetime( elems[ 1 ] )
                     if start_date >= end_date :
-                        logging.error( "ERROR: '%s' is not earlier than the '%s'" % ( elems[ 0 ] , elems[ 1 ] )  )
+                        logger.error( "ERROR: '%s' is not earlier than the '%s'" % ( elems[ 0 ] , elems[ 1 ] )  )
                         self.total_errors += 1
                     # chunk_size
                     chunk_size = str2timedelta( elems[ 2 ] )
@@ -171,12 +171,12 @@ class SanityCheck():
         for section in list( self.cfg.keys( ) ) :
             if self.cfg[ section ].get( 'parallel_env' ) :
                 if self.cfg[ section ][ 'parallel_env' ] not in ParallelEnvironment.launcher_map :
-                    logging.error( "ERROR: '%s' does not exist" % self.cfg[ section ][ 'parallel_env' ] )
+                    logger.error( "ERROR: '%s' does not exist" % self.cfg[ section ][ 'parallel_env' ] )
                     self.total_errors += 1
                 if 'DUMMY' in self.cfg[ section ][ 'parallel_env' ] :
                     if ( not 'parallel_run' in self.cfg[ section ] ) or \
                        ( not 'parallel_run_pernode' in self.cfg[ section ] ) :
-                        logging.error( "ERROR: TO use DUMMY value you have to define "
+                        logger.error( "ERROR: TO use DUMMY value you have to define "
                                        "'parallel_run' and 'parallel_run_pernode' variables" )
                         self.total_errors += 1  
  
@@ -208,7 +208,7 @@ class SanityCheck():
                         raise Exception( "ERROR: 'app' variable in section '%s' is wrong." % section )
                     app_type = app_type.strip()
                     if app_type not in ( 'bundle', 'command' ) :
-                        logging.error( "ERROR: '%s' app type does not exist in section '%s'." % ( app_type, section ) )
+                        logger.error( "ERROR: '%s' app type does not exist in section '%s'." % ( app_type, section ) )
                         self.total_errors += 1
 
     def ensembles(self) :
@@ -236,7 +236,7 @@ class SanityCheck():
                         vals = line.split( '|' ) [ 1: ]
                         if len( vals ) != no_comb :
                             [ vals.append( vals[-1] ) for elem in range( no_comb - len( vals ) ) ]
-                            logging.warn( "WARNING: Extending '%s' with this value '%s'" % ( key, vals[-1] ) )
+                            logger.warn( "WARNING: Extending '%s' with this value '%s'" % ( key, vals[-1] ) )
                         for i, new_section in enumerate( section_names ) :
                             self.cfg_final[ new_section ][ key_value ] [ key ] = vals[i]
                     if no_comb > 1 : del self.cfg_final[ section ]
