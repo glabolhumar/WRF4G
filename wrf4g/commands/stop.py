@@ -28,18 +28,15 @@ Options:
    --dbg    Debug mode.
 """
 
-import logging
 import sys
 from drm4g.commands    import Daemon, Agent
+from wrf4g import logger
 
 def run( arg ) :
-    try:
-        logging.basicConfig( format = '%(message)s',
-                         level  = logging.DEBUG if arg[ '--dbg' ] else logging.INFO,
-                         stream = sys.stdout )
+    try:        
         Daemon().stop()
         Agent().stop()
     except KeyboardInterrupt :
         pass
     except Exception as err :
-        logging.error( str( err ) )
+        logger.error( str( err ) )

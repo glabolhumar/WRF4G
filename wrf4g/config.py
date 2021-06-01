@@ -23,13 +23,13 @@ import re
 import copy
 import json
 import pickle
-import logging
 from os.path          import expandvars, expanduser, exists, join, abspath
 from wrf4g.utils      import dict2obj
 from wrf4g.utils.mpi  import ParallelEnvironment 
 from wrf4g.utils.time import ( datewrf2datetime, Calendar, 
                                str2timedelta, timedelta_total_seconds )
 from wrf4g.utils.file import VarEnv, make_writeable, validate_name
+from wrf4g import logger
 
 def get_conf( directory = './' ):
     """

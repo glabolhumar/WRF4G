@@ -25,7 +25,6 @@ import time
 import copy
 import tarfile
 import shutil
-import logging
 import fortran_namelist as fn
 from fortran_namelist       import coerce_value_list
 from sqlalchemy             import and_, or_
@@ -33,7 +32,7 @@ from os.path                import ( exists, expandvars,
                                      expanduser, isdir, 
                                      join, abspath )
 from datetime               import datetime
-from wrf4g                  import WRF4G_DIR, WRF4G_DEPLOYMENT_DIR
+from wrf4g                  import WRF4G_DIR, WRF4G_DEPLOYMENT_DIR, logger
 from wrf4g.config           import get_conf, save_json
 from wrf4g.utils            import Enumerate, dict_compare 
 from wrf4g.utils.archive    import extract
@@ -60,11 +59,11 @@ class Experiment(object):
         #list of realizations of the experiment
         l_realizations  = self._filter_realizations( rea_pattern, rea_status )
         if not ( l_realizations ):
-            logging.warn( 'There are not realizations to run.' )
+            logger.warn( 'There are not realizations to run.' )
         else:
             #if there are realizations to run
             for rea in l_realizations :
-                logging.info( "---> Submitting Realization %s" % rea.name )
+                logger.info( "---> Submitting Realization %s" % rea.name )
                 #Run every realization
                 rea.dryrun = self.dryrun
                 if rerun :
@@ -83,12 +82,12 @@ class Experiment(object):
         """
         Copy the namelist from the template directory 
         """
-        logging.info( "Preparing namelist %s version ... " % namelist_version )
+        logger.info( "Preparing namelist %s version ... " % namelist_version )
         namelist_template = join( WRF4G_DIR, 'etc', 'templates', 'namelist',
                                   'namelist.input-%s' % namelist_version )
         namelist_input    = join( self.home_directory, 'namelist.input' )
         try :
-            logging.debug( "Copying '%s' to '%s'" % ( namelist_template, namelist_input ) )
+            logger.debug( "Copying '%s' to '%s'" % ( namelist_template, namelist_input ) )
             shutil.copyfile( namelist_template, namelist_input )
         except :
             raise Exception( "There is not a namelist template for WRF '%s'"
@@ -109,7 +108,7 @@ class Experiment(object):
         else :
             #Check if there is a realization with the same no reconfigurable fields
             if rea.cfg[ 'calendar' ] == cfg[ 'calendar' ] and rea.end_date != end_date :
-                logging.debug( '\t\tUpdating realization on the database...' )
+                logger.debug( '\t\tUpdating realization on the database...' )
                 rea.end_date = end_date
                 rea.status   = Realization.Status.PREPARED
                 return rea
@@ -140,7 +139,7 @@ class Experiment(object):
             exp_sub_dir = join( WRF4G_DIR, 'var', 'submission', self.name )
             if not isdir( exp_sub_dir ) :
                 try:
-                    logging.debug( "Creating '%s' directory" % exp_sub_dir )
+                    logger.debug( "Creating '%s' directory" % exp_sub_dir )
                     os.makedirs( exp_sub_dir )
                 except Exception :
                     raise Exception( "Couldn't be created '%s' directory" % exp_sub_dir )
@@ -154,7 +153,7 @@ class Experiment(object):
                     self.update_namelist( namelist_input, section )
                     self.cycle_time( namelist_input, section )
                 except KeyError as err :
-                    logging.error( "%s is a mandatory variable."
+                    logger.error( "%s is a mandatory variable."
                                    " Please add this variable to experiment.wrf4g file" % str(err) )
 
         if not self.dryrun :
@@ -196,9 +195,9 @@ class Experiment(object):
         #list of realization of the experiment
         l_realizations  = self._filter_realizations( rea_pattern, rea_status )
         if not ( l_realizations ):
-            logging.info( 'There are not realizations to cancel.' )
+            logger.info( 'There are not realizations to cancel.' )
         else :
-            logging.info( 'Canceling Experiment %s' % self.name )
+            logger.info( 'Canceling Experiment %s' % self.name )
             for rea in l_realizations :
                 rea.dryrun = self.dryrun
                 rea.cancel( hard )
@@ -217,7 +216,7 @@ class Experiment(object):
         """
         #list of realization of the experiment
         l_realizations  = self._filter_realizations( rea_pattern, False )
-        logging.info( "Job ID;Realization Name;Chunk ID;Resource Name;Execution Time (s);"
+        logger.info( "Job ID;Realization Name;Chunk ID;Resource Name;Execution Time (s);"
                       "Waiting Time (s);REAL Execution Time (s);WRF Execution Time (s)" )
         for rea in l_realizations :
             rea.statistics( )
@@ -229,9 +228,9 @@ class Experiment(object):
         #list of realization of the experiment
         l_realizations  = self._filter_realizations( rea_pattern, False )
         if not ( l_realizations ):
-            logging.info( 'There are not realizations to set priority.' )
+            logger.info( 'There are not realizations to set priority.' )
         else :
-            logging.info( 'Setting priority Experiment %s' % self.name )
+            logger.info( 'Setting priority Experiment %s' % self.name )
             for rea in l_realizations :
                 rea.dryrun = self.dryrun
                 rea.set_priority( priority )
@@ -242,7 +241,7 @@ class Experiment(object):
         """
         # Delete the local submission directory
         local_exp_dir = join( WRF4G_DIR , 'var' , 'submission' , self.name )
-        logging.debug( "Deleting '%s' directory" % local_exp_dir )
+        logger.debug( "Deleting '%s' directory" % local_exp_dir )
         if not self.dryrun :
             if exists( local_exp_dir ) : 
                 shutil.rmtree( local_exp_dir )
@@ -264,7 +263,7 @@ class Experiment(object):
             raise Exception("'%s' already exists" % exp_dir_config )
         elif exists( exp_dir_config ) and force :
             shutil.rmtree( exp_dir_config )
-        logging.debug( "Creating '%s' directory" % exp_dir_config )
+        logger.debug( "Creating '%s' directory" % exp_dir_config )
         shutil.copytree( join( WRF4G_DIR , 'etc' , 'templates' , 'experiments',  template ),
                          exp_dir_config )
         dest_path = join( exp_dir_config , 'experiment.wrf4g' )
@@ -284,12 +283,12 @@ class Experiment(object):
         Update namelist values
         """
         nmli = fn.WrfNamelist( namelist_input )
-        logging.debug( "Updating parameter 'max_dom' in the namelist" )
+        logger.debug( "Updating parameter 'max_dom' in the namelist" )
         nmli.setValue( "max_dom", int( self.cfg[ section ][ 'max_dom' ] ) )
         max_dom = single = False
         for mnl_variable, mnl_values in self.cfg[ section ][ 'namelist_values' ].items() :
             # Update the namelist per each combination
-            logging.debug( "Updating parameter '%s' in the namelist" % mnl_variable )
+            logger.debug( "Updating parameter '%s' in the namelist" % mnl_variable )
             # Modify the namelist with the parameters available in the namelist description
             if mnl_variable.startswith( "max_dom:" ) :
                 mnl_variable = mnl_variable[ 8: ]
@@ -336,7 +335,7 @@ class Experiment(object):
         for ( start_date, end_date, simult_interval,
               simult_length, chunk_size, restart_interval ) in self.cfg[ section ][ 'date_time' ] :
             # Update restart_interval in the namelist 
-            logging.debug( "Updating parameter 'restart_interval' in the namelist" )
+            logger.debug( "Updating parameter 'restart_interval' in the namelist" )
             nmli = fn.WrfNamelist( namelist_input )
             nmli.setValue( "restart_interval", restart_interval )
             if not self.dryrun :
@@ -349,7 +348,7 @@ class Experiment(object):
                 if rea_end_date > end_date :
                     rea_end_date = end_date
                 rea_name = "%s-%s" % ( realization_name, rea_start_date.strftime( "%Y%m%dT%H%M%S" ) )
-                logging.info( "---> Realization %s: start date %s end date %s" % (
+                logger.info( "---> Realization %s: start date %s end date %s" % (
                                rea_name, rea_start_date, rea_end_date ) )
                 # Check realization on the database
                 rea = self.check_db( name = rea_name, start_date = rea_start_date, end_date = rea_end_date,
@@ -405,10 +404,10 @@ class Experiment(object):
         Create bundles with the necessary software to run WRF on worker nodes.
         """
         # WRF4G bundle
-        logging.debug( "Create a WRF4G software bundle to use on the worker node..." )
+        logger.debug( "Create a WRF4G software bundle to use on the worker node..." )
         wrf4g_package = join ( exp_sub_dir , "WRF4G.tar.gz" )
         if exists( wrf4g_package  ):
-            logging.debug( "Removing '%s' package" % wrf4g_package )
+            logger.debug( "Removing '%s' package" % wrf4g_package )
             os.remove( wrf4g_package )
         current_path = os.getcwd()
         try :
@@ -423,16 +422,16 @@ class Experiment(object):
                 imodule = __import__(module)
                 tar.add('%s/%s.py' %(os.path.dirname(imodule.__file__),module), arcname='lib/python/%s' % ('%s.py' %(module)))
         except Exception as err:
-            logging.warn( err )
+            logger.warn( err )
         finally :
             tar.close()
         # wrf4g_files bundle
         wrf4g_files_dir = join( self.home_directory, 'wrf4g_files' )
         if isdir( wrf4g_files_dir ):
-            logging.debug( "Create a wrf4g_files.tar.gz bundle to use on the worker node..." )
+            logger.debug( "Create a wrf4g_files.tar.gz bundle to use on the worker node..." )
             wrf4g_files_package = join ( exp_sub_dir , "wrf4g_files.tar.gz" )
             if exists( wrf4g_files_package ):
-                logging.debug( "Removing '%s' package" % wrf4g_files_package )
+                logger.debug( "Removing '%s' package" % wrf4g_files_package )
                 os.remove( wrf4g_files_package )
             tar = tarfile.open( wrf4g_files_package , "w:gz" )
             os.chdir( wrf4g_files_dir )
@@ -474,20 +473,20 @@ class Realization( object ):
         last_chunk_run  = int( last_chunk_run  ) if last_chunk_run  else None
         #Check the status of the realization
         if self.status == Realization.Status.FINISHED and not rerun :
-            logging.warn( "\tRealization '%s' already finished." % self.name )
+            logger.warn( "\tRealization '%s' already finished." % self.name )
         elif ( self.status == Realization.Status.SUBMITTED or 
                self.status == Realization.Status.RUNNING ) and not rerun :
-            logging.warn( "\tRealization '%s' has been submitted." % self.name )
+            logger.warn( "\tRealization '%s' has been submitted." % self.name )
         elif first_chunk_run and first_chunk_run < 0 :
-            logging.error( "\tERROR: The first chunk to run is '%d'." % first_chunk_run ) 
+            logger.error( "\tERROR: The first chunk to run is '%d'." % first_chunk_run ) 
         elif last_chunk_run and last_chunk_run  < 0 :
-            logging.error( "\tERROR: The last chunk to run is '%d'." % last_chunk_run )
+            logger.error( "\tERROR: The last chunk to run is '%d'." % last_chunk_run )
         elif ( last_chunk_run and first_chunk_run ) and last_chunk_run < first_chunk_run :
-            logging.error( "\tERROR: The last chunk to run is greater than the fist one." )
+            logger.error( "\tERROR: The last chunk to run is greater than the fist one." )
         elif last_chunk_run and last_chunk_run > self.nchunks :
-            logging.error( "\tERROR: The last chunk does not exist." )
+            logger.error( "\tERROR: The last chunk does not exist." )
         elif first_chunk_run and first_chunk_run > self.nchunks :
-            logging.error( "\tERROR: The first chunk does not exist." )
+            logger.error( "\tERROR: The first chunk does not exist." )
         else :
             # search first chunk to run
             if rerun and first_chunk_run :
@@ -530,7 +529,7 @@ class Realization( object ):
             #run chunks
             for index, chunk in enumerate( l_chunks ) :
                 #print data of chunks
-                logging.info( '\t---> Submitting Chunk %d %s %s' % ( chunk.chunk_id, 
+                logger.info( '\t---> Submitting Chunk %d %s %s' % ( chunk.chunk_id, 
                                                               datetime2datewrf(chunk.start_date), 
                                                               datetime2datewrf(chunk.end_date) ) )
                 if not self.dryrun :
@@ -582,7 +581,7 @@ class Realization( object ):
                 except Exception :
                     return None
                 else :
-                    logging.debug( '\t\t\tUpdating chunk on the database...' )
+                    logger.debug( '\t\t\tUpdating chunk on the database...' )
                     ch2.end_date = chunk_end_date
                     return ch2
             else :
@@ -610,7 +609,7 @@ class Realization( object ):
                                 chunk_id         = chunk_id
                                 )
             if not ch :
-                logging.info( "\t\t---> Chunk %d %s %s" %( chunk_id,
+                logger.info( "\t\t---> Chunk %d %s %s" %( chunk_id,
                                                        datetime2datewrf(chunk_start_date),
                                                        datetime2datewrf(chunk_end_date) ) )
                 # Create Chunk
@@ -630,7 +629,7 @@ class Realization( object ):
 
     @staticmethod 
     def status_header(): 
-        logging.info( '%-60s %-10s %-10s %-16s %-10s %6s %-3s %6s'% (
+        logger.info( '%-60s %-10s %-10s %-16s %-10s %6s %-3s %6s'% (
                         'REALIZATION','STATUS','CHUNKS','RESOURCE','RUN STATUS',
                         'JID', 'EXT','%' ) )
  
@@ -671,7 +670,7 @@ class Realization( object ):
         #Percentage
         per = runt * 100.0 / totalt
         #Print output
-        logging.info( "%-60s %-10.10s %-10.10s %-16.16s %-10.10s %6.6s %-3.3s %6.2f" % (
+        logger.info( "%-60s %-10.10s %-10.10s %-16.16s %-10.10s %6.6s %-3.3s %6.2f" % (
                     self.name, self.status, chunk_distribution, resource, status, 
                     gw_job, exitcode, per ) )
 
@@ -679,27 +678,27 @@ class Realization( object ):
         """
         Get information about all realization values.
         """
-        logging.info( "Start date: %s" % self.start_date )
-        logging.info( "End date: %s" % self.end_date  )
-        logging.info( "Current date: %s" % self.current_date )
-        logging.info( "Chunk size: %s" % self.chunk_size )
-        logging.info( "Number of chunks: %s" % self.nchunks )
-        logging.info( "Status: %s" % self.status )
-        logging.info( "Configuration: " )
+        logger.info( "Start date: %s" % self.start_date )
+        logger.info( "End date: %s" % self.end_date  )
+        logger.info( "Current date: %s" % self.current_date )
+        logger.info( "Chunk size: %s" % self.chunk_size )
+        logger.info( "Number of chunks: %s" % self.nchunks )
+        logger.info( "Status: %s" % self.status )
+        logger.info( "Configuration: " )
         for key, val in self.cfg.items() :
            if 'date_time' in key : 
                continue
            elif 'app' in key :
-               logging.info( "\t%s: %s" % ( key, val.replace( '\n', '\n\t\t' ) ) )
+               logger.info( "\t%s: %s" % ( key, val.replace( '\n', '\n\t\t' ) ) )
            elif type( val ) == dict :
-               logging.info( "\t%s" % key )
+               logger.info( "\t%s" % key )
                for key2, val2 in val.items() :
-                   logging.info( "\t\t%s: %s" % ( key2, val2 ) )
+                   logger.info( "\t\t%s: %s" % ( key2, val2 ) )
            elif type( val ) == list or type( val ) == tuple :
-               logging.info( "\t%s: %s" % ( key, ' '.join( val ) ) )
+               logger.info( "\t%s: %s" % ( key, ' '.join( val ) ) )
            else :
                if 'app' in key : val
-               logging.info( "\t%s: %s" % ( key, val ) )
+               logger.info( "\t%s: %s" % ( key, val ) )
   
     def get_log( self, chunk_id , directory ) :
         """
@@ -710,7 +709,7 @@ class Realization( object ):
         if not all_tar_files :
             raise Exception( 'There is not a log available for this chunk.' )
         for tar_file in all_tar_files :
-            logging.info( "Unpacking %s file in the %s directory" % ( tar_file, directory ) )
+            logger.info( "Unpacking %s file in the %s directory" % ( tar_file, directory ) )
             extract( tar_file, expandvars( expanduser( directory ) ) )
 
     def cancel(self, hard = False ):
@@ -722,9 +721,9 @@ class Realization( object ):
                                            Chunk.status == Chunk.Status.FAILED,
                                            Chunk.status == Chunk.Status.RUNNING ) 
                                     ).all()
-        logging.info( '---> Canceling Realization %s' % self.name )
+        logger.info( '---> Canceling Realization %s' % self.name )
         if not ( l_chunks ):
-            logging.info( '\tThere are not chunks to cancel.' )
+            logger.info( '\tThere are not chunks to cancel.' )
         else :
             for chunk in l_chunks :
                 chunk.dryrun = self.dryrun
@@ -744,7 +743,7 @@ class Realization( object ):
             except :
                 pass
             else :
-                logging.debug( "Releasing job %s" % job.gw_job )
+                logger.debug( "Releasing job %s" % job.gw_job )
                 GWJob().release( job.gw_job  )
                 job.set_status( Job.Status.RELEASED )
 
@@ -760,7 +759,7 @@ class Realization( object ):
                 date_REAL      = finished_job.events.filter_by( job_status = Job.Status.REAL ).one().timestamp
                 date_WRF       = finished_job.events.filter_by( job_status = Job.Status.WRF ).one().timestamp
                 date_FINISHED  = finished_job.events.filter_by( job_status = Job.Status.FINISHED ).one().timestamp
-                logging.info( "%d;%d;%s;%s;%d;%d;%d;%d" % ( finished_job.gw_job, chunk.chunk_id, self.name, finished_job.resource,
+                logger.info( "%d;%d;%s;%s;%d;%d;%d;%d" % ( finished_job.gw_job, chunk.chunk_id, self.name, finished_job.resource,
                                                         timedelta_total_seconds( date_FINISHED - date_RUNNING ), 
                                                         timedelta_total_seconds( date_RUNNING  - date_SUBMITTED ),
                                                         timedelta_total_seconds( date_WRF      - date_REAL ),
@@ -773,9 +772,9 @@ class Realization( object ):
         if priority < 0 or priority > 20 :
             raise Exception( "'%d' priority is out of the range [0, 20]" % priority )      
         l_chunks = self.chunk.filter_by( status = Chunk.Status.SUBMITTED ).all()
-        logging.info( '---> Setting priority Realization %s' % self.name )
+        logger.info( '---> Setting priority Realization %s' % self.name )
         if not ( l_chunks ):
-            logging.info( '\tThere are not chunks to set priority.' )
+            logger.info( '\tThere are not chunks to set priority.' )
         else :
             for chunk in l_chunks :
                 chunk.dryrun = self.dryrun
@@ -785,7 +784,7 @@ class Realization( object ):
         """
         Get restart date.
         """
-        logging.info( datetime2datewrf( self.restart ) )
+        logger.info( datetime2datewrf( self.restart ) )
  
     def set_restart(self, restart_date ):
         """
@@ -796,7 +795,7 @@ class Realization( object ):
         except :
             raise Exception( "ERROR: restart date is malformed" )
         else :
-            logging.info( '---> Setting restart date %s' % datetime2datewrf( datetime_restart_date ) )
+            logger.info( '---> Setting restart date %s' % datetime2datewrf( datetime_restart_date ) )
             self.restart = datetime_restart_date
  
 class Chunk( object ):
@@ -875,7 +874,7 @@ class Chunk( object ):
         """
         Delete jobs
         """
-        logging.info('\t---> Canceling Chunk %d %s %s' % ( self.chunk_id,
+        logger.info('\t---> Canceling Chunk %d %s %s' % ( self.chunk_id,
                                                            datetime2datewrf(self.start_date),
                                                            datetime2datewrf(self.end_date) ) )
         l_jobs = self.job.filter( and_( Job.status != Job.Status.PREPARED, 
@@ -884,7 +883,7 @@ class Chunk( object ):
                                         Job.status != Job.Status.CANCEL ) 
                                 ).all()
         if not ( l_jobs ):
-            logging.info( '\t\tThere are not jobs to cancel.' )
+            logger.info( '\t\tThere are not jobs to cancel.' )
         else :
             for job in l_jobs :
                 job.dryrun = self.dryrun
@@ -894,12 +893,12 @@ class Chunk( object ):
         """
         Setting priority to jobs
         """
-        logging.info('\t---> Setting priority Chunk %d %s %s' % ( self.chunk_id,
+        logger.info('\t---> Setting priority Chunk %d %s %s' % ( self.chunk_id,
                                                                   datetime2datewrf(self.start_date),
                                                                   datetime2datewrf(self.end_date) ) )
         l_jobs = self.job.filter_by( status = Job.Status.SUBMITTED ).all()
         if not ( l_jobs ):
-            logging.info( '\t\tThere are not jobs to set priority.' )
+            logger.info( '\t\tThere are not jobs to set priority.' )
         else :
             for job in l_jobs :
                 job.dryrun = self.dryrun
@@ -993,7 +992,7 @@ class Job( object ):
         """
         Delete a job
         """
-        logging.info('\t\t---> Canceling Job %d' % self.gw_job ) 
+        logger.info('\t\t---> Canceling Job %d' % self.gw_job ) 
         if not self.dryrun :
             GWJob().kill( self.gw_job, hard )
             self.set_status( Job.Status.CANCEL )
@@ -1002,7 +1001,7 @@ class Job( object ):
         """
         Set job priority
         """
-        logging.info('\t\t---> Setting priority Job %d' % self.gw_job )
+        logger.info('\t\t---> Setting priority Job %d' % self.gw_job )
         if not self.dryrun :
             GWJob().set_priority( self.gw_job, priority )
 

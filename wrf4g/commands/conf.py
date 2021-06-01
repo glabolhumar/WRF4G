@@ -28,16 +28,12 @@ Options:
    --dbg    Debug mode
 """
 
-import logging
 import sys
 from wrf4g            import DB4G_CONF, WRF4G_LOGGER 
 from drm4g            import DRM4G_DAEMON, DRM4G_SCHED
 from wrf4g.utils.file import edit_file
 
 def run( arg ) :
-    logging.basicConfig( format = '%(message)s', 
-                         level  = logging.DEBUG if arg[ '--dbg' ] else logging.INFO,
-                         stream = sys.stdout )
     if arg[ 'daemon' ] :
         conf_file = DRM4G_DAEMON
     elif arg[ 'logger' ]:

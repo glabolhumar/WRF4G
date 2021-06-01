@@ -22,12 +22,11 @@ import os
 import socket
 import signal
 import time
-import logging
 from sqlalchemy                 import create_engine 
 from sqlalchemy.pool            import NullPool
 from sqlalchemy.orm             import relationship, sessionmaker
 from os.path                    import join, exists
-from wrf4g                      import DB4G_CONF, WRF4G_DIR
+from wrf4g                      import DB4G_CONF, WRF4G_DIR, logger
 from wrf4g.utils.command        import exec_cmd_advance as exec_cmd
 from wrf4g.utils.file           import VarEnv
 
@@ -68,14 +67,14 @@ class MySQLDB( object ):
 
     def status( self ):
         if not exists( self.mysql_pid ) :
-            logging.info( "WRF4G_DB (MySQL) has not started" )
+            logger.info( "WRF4G_DB (MySQL) has not started" )
         elif process_is_runnig( self.mysql_pid ) :
-            logging.info( "WRF4G_DB (MySQL) is running" )
+            logger.info( "WRF4G_DB (MySQL) is running" )
         else :
-            logging.info( "WRF4G_DB (MySQL) is stopped" )
+            logger.info( "WRF4G_DB (MySQL) is stopped" )
 
     def start( self ):
-        logging.info( "Starting WRF4G_DB (MySQL) ... " )
+        logger.info( "Starting WRF4G_DB (MySQL) ... " )
         if not self._port_is_free() and not process_is_runnig( self.mysql_pid ):
             raise Exception( "WARNING: Another process is listening on port %s.\n"
               "Change the port by executing 'wrf4g start --db-port=new_port'." % self.mysql_port
@@ -90,19 +89,19 @@ class MySQLDB( object ):
             exec_cmd( cmd , nohup = True, stdin = False )
             time.sleep( 2.0 )
             if not exists( self.mysql_pid ) or self._port_is_free() :
-                logging.error( " ERROR: MySQL did not start, check '%s' for more information " % self.mysql_log )
+                logger.error( " ERROR: MySQL did not start, check '%s' for more information " % self.mysql_log )
             else :
-                logging.info( " OK" )
+                logger.info( " OK" )
         else :
-            logging.warn( " WARNING: MySQL is already running" )
+            logger.warn( " WARNING: MySQL is already running" )
 
     def stop( self ):
         if not exists( self.mysql_pid ) :
-            logging.info( "WRF4G_DB (MySQL) has not started" )
+            logger.info( "WRF4G_DB (MySQL) has not started" )
         else :
-            logging.info( "Stopping WRF4G_DB (MySQL) ..." )
+            logger.info( "Stopping WRF4G_DB (MySQL) ..." )
             if not exists( self.mysql_pid ) and not process_is_runnig( self.mysql_pid ) :
-                logging.warn( " WARNING: MySQL is already stopped" )
+                logger.warn( " WARNING: MySQL is already stopped" )
             elif exists( self.mysql_pid ) and process_is_runnig( self.mysql_pid ) :
                 with open( self.mysql_pid , 'r') as f:
                     pid = f.readline().strip()
@@ -112,17 +111,17 @@ class MySQLDB( object ):
                 try :
                     os.kill( int( mysql_ppid ), signal.SIGKILL )
                     os.kill( int( pid ), signal.SIGKILL )
-                    logging.info( " OK" )
+                    logger.info( " OK" )
                 except Exception as err :
-                    logging.error( " ERROR: stopping MySQL: %s" % err )
+                    logger.error( " ERROR: stopping MySQL: %s" % err )
             else :
-                logging.warn( " WARNING: MySQL is already stopped" )
+                logger.warn( " WARNING: MySQL is already stopped" )
 
 def get_session():
     """
     Create a sqlalchemy session to connect with WRF4G database
     """
-    logging.debug( "Reading database configuration from '%s' file" % DB4G_CONF  )
+    logger.debug( "Reading database configuration from '%s' file" % DB4G_CONF  )
     db4g_urls = VarEnv( DB4G_CONF ).get_var( 'URL' )
     # an Engine, which the Session will use for connection
     engine = create_engine( db4g_urls )
@@ -135,10 +134,10 @@ def init_db():
     """
     Create WRF4G database tables
     """
-    logging.debug( "Reading database configuration from '%s' file" % DB4G_CONF  )
+    logger.debug( "Reading database configuration from '%s' file" % DB4G_CONF  )
     engine = create_engine( VarEnv( DB4G_CONF ).get_var( 'URL' ) )
     Session = sessionmaker( bind = engine )
     session = Session()
     from wrf4g.orm import metadata
-    logging.debug( "Creating WRF4G tables" )
+    logger.debug( "Creating WRF4G tables" )
     metadata.create_all( engine )

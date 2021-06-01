@@ -94,7 +94,6 @@ EXIT CODES
 
 import sys
 import time
-import logging
 import shutil
 from sqlalchemy.orm.exc   import NoResultFound
 from sqlalchemy.exc       import OperationalError
@@ -102,11 +101,10 @@ from wrf4g.db             import get_session
 from wrf4g.core           import Experiment
 from wrf4g.utils.command  import cls
 from wrf4g.utils.time     import datetime2datewrf
+from wrf4g import logger
 
 def run( arg ) :
-    logging.basicConfig( format = '%(message)s', 
-                         level  = logging.DEBUG if arg[ '--dbg' ] else logging.INFO,  
-                         stream = sys.stdout )
+
     if arg[ 'define' ] :
         Experiment.create_files( arg[ '<name>' ], 
                                  "default" if not arg[ '--from-template' ] else arg[ '--from-template' ], 
@@ -120,12 +118,12 @@ def run( arg ) :
                 if arg[ '--pattern' ] :
                     l_exps  = l_exps.filter( Experiment.name.like( arg[ '--pattern' ].replace('*','%') ) )
                 if not l_exps.all() :
-                    logging.info( "There are not experiments" )
+                    logger.info( "There are not experiments" )
                 else :
                     # Header
-                    logging.info( "\033[1;4m%-40s\033[0m" % ( "EXPERIMENT" ) )
+                    logger.info( "\033[1;4m%-40s\033[0m" % ( "EXPERIMENT" ) )
                     for e in l_exps :
-                        logging.info("%-s" % ( e.name ) ) 
+                        logger.info("%-s" % ( e.name ) ) 
             else :
                 try :
                     exp = session.query( Experiment ).\
@@ -171,9 +169,9 @@ def run( arg ) :
                     elif arg[ 'delete' ] :
                         exp.delete( )
                         session.delete( exp )
-                        logging.info( "'%s' experiment has been deleted from the database" % exp.name )
+                        logger.info( "'%s' experiment has been deleted from the database" % exp.name )
                     elif arg[ 'create' ] :
-                        logging.info( "'%s' experiment already exists" % exp.name )
+                        logger.info( "'%s' experiment already exists" % exp.name )
                         
             if arg[ '--dry-run' ] :
                 session.rollback()
@@ -183,12 +181,12 @@ def run( arg ) :
                     exp.release()
                     session.commit()
         except OperationalError as err :
-            logging.error( err.message )
+            logger.error( err.message )
         except KeyboardInterrupt :
             session.rollback()
         except Exception as err :
             session.rollback()
-            #logging.error( str( err ) )
+            #logger.error( str( err ) )
             session.close()
             exit(str(err))
         finally:

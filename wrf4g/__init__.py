@@ -21,6 +21,8 @@
 import os
 import sys
 from os.path      import dirname, join, abspath, exists
+import logging.config
+import logging
 
 __version__  = '2.3.0'
 __author__   = 'Carlos Blanco'
@@ -33,7 +35,10 @@ if ( not os.environ.get("DRM4G_DIR")):
 #os.environ[ 'GW_LOCATION' ]= join( os.environ.get( 'DRM4G_DIR'), '.drm4g' )
 WRF4G_DEPLOYMENT_DIR = os.path.dirname(os.path.realpath(__file__))
 DB4G_CONF            = os.environ.get( 'DB4G_CONF',  join( WRF4G_DIR , 'etc' , 'db.conf' ) )
-WRF4G_LOGGER         = join( WRF4G_DIR, 'etc', 'logger.conf')
+WRF4G_LOGGER         = join( os.environ["DRM4G_DIR"], 'etc', 'logger.conf')
+
+logging.config.fileConfig(WRF4G_LOGGER, {"DRM4G_DIR": os.environ["DRM4G_DIR"]})
+logger = logging.getLogger('console')
 
 import wrf4g.orm
 from ._version import __version__

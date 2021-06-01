@@ -51,6 +51,7 @@ __author__   = 'Carlos Blanco'
 __revision__ = "$Id$"
 
 from docopt import docopt
+import logging
 
 if __name__ == "__main__":
     args = docopt( __doc__, version = __version__ , options_first = True )
@@ -59,6 +60,8 @@ if __name__ == "__main__":
     if args['<command>'] in sub_commands :
         command = getattr( __import__( "wrf4g.commands.%s" %  args['<command>'] ).commands, args['<command>'] )
         arg = docopt( command.__doc__ , argv = argv )
+        if arg[ '--dbg' ] :
+            command.logger.setLevel(logging.DEBUG)
         try :
             command.run( arg )
         except Exception as err :

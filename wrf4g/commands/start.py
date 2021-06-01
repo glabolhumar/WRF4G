@@ -34,44 +34,35 @@ import glob
 import os
 import sys
 import socket
-import logging
 from os.path              import exists, join, abspath, join, dirname
 from distutils.dir_util   import copy_tree
 from drm4g                import DRM4G_DIR
 from drm4g.commands       import Daemon, Agent
-from wrf4g                import WRF4G_DEPLOYMENT_DIR, WRF4G_DIR, DB4G_CONF, WRF4G_LOGGER
+from wrf4g                import WRF4G_DEPLOYMENT_DIR, WRF4G_DIR, DB4G_CONF, logger
 from wrf4g.db             import DEFAULT_DB_CONF
 import requests            
 import tarfile
 
 
 def run( arg ) :
-        
+         
     try:
-        # El logger no funcionaba porque el import logging se hace varias veces y coge la primera. Hacemos un reload para que funcione
-        # https://stackoverflow.com/questions/20240464/python-logging-file-is-not-working-when-using-logging-basicconfig
-        from imp import reload
-        reload(logging)
-        logging.basicConfig( format = '%(message)s',
-                         level  = logging.DEBUG if arg[ '--dbg' ] else logging.INFO,
-                         stream = sys.stdout )
-
         if not exists( WRF4G_DIR ) or arg[ '--clear-conf' ] :
             from shutil import copytree, rmtree
             if exists( WRF4G_DIR ) :
-                logging.debug( "Removing WRF4G local configuration in '%s'" %  WRF4G_DIR )
+                logger.debug( "Removing WRF4G local configuration in '%s'" %  WRF4G_DIR )
                 rmtree( WRF4G_DIR   )
-            logging.debug( "Creating a WRF4G local configuration in '%s'" %  WRF4G_DIR )
+            logger.debug( "Creating a WRF4G local configuration in '%s'" %  WRF4G_DIR )
             for directory in [  'log', 'submission', 'acct' ] :
                 abs_dir = join ( WRF4G_DIR , 'var' , directory )
-                logging.debug( "Creating '%s' directory" % abs_dir )
+                logger.debug( "Creating '%s' directory" % abs_dir )
                 os.makedirs( abs_dir )
             
             src = join( WRF4G_DEPLOYMENT_DIR , 'data' )
-            logging.debug( "Coping from '%s' to '%s'" % ( src , WRF4G_DIR ) )
+            logger.debug( "Coping from '%s' to '%s'" % ( src , WRF4G_DIR ) )
             copy_tree( src , WRF4G_DIR )
             
-            logging.debug('Downloading and extracting data repository')
+            logger.debug('Downloading and extracting data repository')
             r = requests.get('http://personales.gestion.unican.es/fernanqv/repository2.tar.gz')
             open('repository.tar.gz', 'wb').write(r.content)
             tar = tarfile.open('repository.tar.gz')
@@ -90,5 +81,5 @@ def run( arg ) :
     except KeyboardInterrupt :
         pass
     except Exception as err :
-        logging.error( err )
+        logger.error( err )
 
