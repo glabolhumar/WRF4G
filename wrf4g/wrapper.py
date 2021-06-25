@@ -515,7 +515,6 @@ class WRF4GWrapper(object):
             filename=params.log_file,
             level=params.log_level,
         )
-
         # Log path information
         logging.info("Information about directories")
         logging.info("Root path = %s" % params.root_path)

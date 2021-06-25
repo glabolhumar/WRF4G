@@ -287,7 +287,6 @@ class Experiment(object):
         logging.debug( "Updating parameter 'max_dom' in the namelist" )
         nmli.setValue( "max_dom", int( self.cfg[ section ][ 'max_dom' ] ) )
         max_dom = single = False
-        
         # If namelist_values is empty, do not modify namelist variables
         if (len(self.cfg[ section ][ 'namelist_values']) != 0):
             for mnl_variable, mnl_values in self.cfg[ section ][ 'namelist_values' ].items() :
