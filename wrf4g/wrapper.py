@@ -142,6 +142,7 @@ class JobDB(object):
     def has_wps(self):
         self.check_db()
         if self.session and self.job:
+            logging.info("has_wps: %d" %(self.job.chunk.wps))
             return self.job.chunk.wps
         else:
             return 0
@@ -269,6 +270,7 @@ class PilotParams(object):
         self.chunk_rdate = self.chunk_sdate
         # Variable to rerun the chunk
         self.rerun = int(sys.argv[6])
+        self.mode = int(sys.argv[7])
         # Preprocessor parameters
         self.preprocessor_optargs = dict()
         if "preprocessor_optargs" in resource_cfg:
@@ -507,12 +509,13 @@ class WRF4GWrapper(object):
 
     def launch(self):
         params = self.params
+        self.create_log_directory()
         logging.basicConfig(
             format="%(asctime)s %(message)s",
             filename=params.log_file,
             level=params.log_level,
         )
-        self.create_log_directory()
+
         # Log path information
         logging.info("Information about directories")
         logging.info("Root path = %s" % params.root_path)
@@ -554,7 +557,7 @@ class WRF4GWrapper(object):
         shutil.copyfile(
             join(self.params.root_path, "namelist.input"), self.params.namelist_input
         )
-        if self.job_db.has_wps():
+        if self.job_db.has_wps() or self.params.mode == 2:
             # WPS output is already available
             try:
                 self.download_wps()
@@ -563,7 +566,7 @@ class WRF4GWrapper(object):
                     "There was a problem downloading the boundaries and initial conditions"
                 )
                 self.rerun_wps = True
-        if not self.job_db.has_wps() or self.rerun_wps:
+        if not (self.job_db.has_wps() or self.params.mode == 2) or self.rerun_wps:
             logging.info("The boundaries and initial conditions are not available")
             self.run_wps(binaries)
         # Run WRF

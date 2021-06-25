@@ -22,7 +22,7 @@
 Manage WRF4G realizations. 
     
 Usage: 
-     wrf4g rea <name> submit       [ --dbg ] [ --dry-run ] [ --priority=<value> ] [ --rerun ] [ <first_ch> [ <last_ch> ] ]
+     wrf4g rea <name> submit       [ --dbg ] [ --dry-run ] [ --priority=<value> ] [ --rerun ] [ --mode=<value> ] [ <first_ch> [ <last_ch> ] ]
      wrf4g rea <name> status       [ --dbg ] [ --delay=<seconds> ]
      wrf4g rea <name> info
      wrf4g rea <name> log          [ --dbg ] [ --dir=<directory> ] <chunk_id>
@@ -39,6 +39,7 @@ Options:
     --delay=<seconds>      Refresh experiment information every delay seconds.    
     -d --dir=<directory>   Directory to unpack log files [default: ./].
     --hard                 Remove jobs from without synchronizing.
+    -m --mode=<value>      0 (default): run whole workflow, 1: only WPS and real, 2: only WRF [default: 0]
   
 Commands:
     submit                 Submit the realization.       
@@ -109,7 +110,9 @@ def run( arg ) :
                 rea.run( first_chunk_run = arg[ '<first_ch>' ], 
                          last_chunk_run  = arg[ '<last_ch>' ], 
                          rerun           = arg[ '--rerun' ],
-                         priority        = int( arg[ '--priority' ] ) )
+                         priority        = int( arg[ '--priority' ] ), 
+                         mode            = int(arg['--mode'] ) 
+                         )
             elif arg[ 'status' ] :
                 if not arg[ '--delay' ] :
                     rea.status_header( )

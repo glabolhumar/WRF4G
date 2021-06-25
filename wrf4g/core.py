@@ -50,7 +50,7 @@ class Experiment(object):
     """
     dryrun = False
     
-    def run(self, rerun = False, rea_pattern = False, rea_status = False, priority = 0 ):
+    def run(self, rerun = False, rea_pattern = False, rea_status = False, priority = 0, mode=0 ):
         """
         Run the realizations of this experiment
         n_chunk is the number of chunks to run. 
@@ -71,7 +71,7 @@ class Experiment(object):
                    first_chunk_run = 1
                 else :
                    first_chunk_run = None
-                rea.run( first_chunk_run = first_chunk_run, rerun = rerun, priority = priority )
+                rea.run( first_chunk_run = first_chunk_run, rerun = rerun, priority = priority, mode=mode )
 
     def edit(self):
         """
@@ -287,30 +287,33 @@ class Experiment(object):
         logging.debug( "Updating parameter 'max_dom' in the namelist" )
         nmli.setValue( "max_dom", int( self.cfg[ section ][ 'max_dom' ] ) )
         max_dom = single = False
-        for mnl_variable, mnl_values in self.cfg[ section ][ 'namelist_values' ].items() :
-            # Update the namelist per each combination
-            logging.debug( "Updating parameter '%s' in the namelist" % mnl_variable )
-            # Modify the namelist with the parameters available in the namelist description
-            if mnl_variable.startswith( "max_dom:" ) :
-                mnl_variable = mnl_variable[ 8: ]
-                max_dom      = True
-            elif mnl_variable.startswith( "single:" ) :
-                mnl_variable = mnl_variable[ 7: ]
-                single       = True
-            if '.' in mnl_variable :
-                nml_section, val = mnl_variable.split( '.' )
-            else :
-                nml_section, val = "",  mnl_variable
-            if max_dom and not val in nmli.MAX_DOM_VARIABLES :
-                nmli.MAX_DOM_VARIABLES.extend( val  )
-            if single and val in nmli.MAX_DOM_VARIABLES :
-                nmli.MAX_DOM_VARIABLES.remove( val  )
-            try :
-                nmli.setValue( val, coerce_value_list( mnl_values.strip( ',' ).split( ',' ) ), nml_section )
-            except IndexError:
-                raise Exception( "'%s' does not have values for all namelist combinations." % mnl_variable )
-            except Exception as err:
-                raise Exception( err )
+        
+        # If namelist_values is empty, do not modify namelist variables
+        if (len(self.cfg[ section ][ 'namelist_values']) != 0):
+            for mnl_variable, mnl_values in self.cfg[ section ][ 'namelist_values' ].items() :
+                # Update the namelist per each combination
+                logging.debug( "Updating parameter '%s' in the namelist" % mnl_variable )
+                # Modify the namelist with the parameters available in the namelist description
+                if mnl_variable.startswith( "max_dom:" ) :
+                    mnl_variable = mnl_variable[ 8: ]
+                    max_dom      = True
+                elif mnl_variable.startswith( "single:" ) :
+                    mnl_variable = mnl_variable[ 7: ]
+                    single       = True
+                if '.' in mnl_variable :
+                    nml_section, val = mnl_variable.split( '.' )
+                else :
+                    nml_section, val = "",  mnl_variable
+                if max_dom and not val in nmli.MAX_DOM_VARIABLES :
+                    nmli.MAX_DOM_VARIABLES.extend( val  )
+                if single and val in nmli.MAX_DOM_VARIABLES :
+                    nmli.MAX_DOM_VARIABLES.remove( val  )
+                try :
+                    nmli.setValue( val, coerce_value_list( mnl_values.strip( ',' ).split( ',' ) ), nml_section )
+                except IndexError:
+                    raise Exception( "'%s' does not have values for all namelist combinations." % mnl_variable )
+                except Exception as err:
+                    raise Exception( err )
         nmli.trimMaxDom()
         nmli.extendMaxDomVariables()
         if nmli.wrfCheck() :
@@ -464,7 +467,7 @@ class Realization( object ):
     Status = Enumerate( 'PREPARED', 'SUBMITTED', 'RUNNING',
                         'PENDING', 'FAILED', 'FINISHED' )
         
-    def run(self, first_chunk_run = None , last_chunk_run = None, rerun = False, priority = 0 ):
+    def run(self, first_chunk_run = None , last_chunk_run = None, rerun = False, priority = 0, mode=0 ):
         """ 
         Run n_chunk of the realization.
         If n_chunk=0 run every chunk of the realization which haven't finished yet
@@ -534,7 +537,7 @@ class Realization( object ):
                                                               datetime2datewrf(chunk.start_date), 
                                                               datetime2datewrf(chunk.end_date) ) )
                 if not self.dryrun :
-                    chunk.run( index, rerun, priority )
+                    chunk.run( index, rerun, priority, mode )
             if not self.dryrun :
                 # Update reealizaiton status
                 self.status = Realization.Status.SUBMITTED
@@ -809,7 +812,7 @@ class Chunk( object ):
                         'PENDING', 'FAILED', 'FINISHED' )
  
     #METHODS
-    def run (self, index, rerun = False, priority = 0 ):
+    def run (self, index, rerun = False, priority = 0, mode=0 ):
         """ 
         Run a chunk is run a drm4g job
         """
@@ -835,10 +838,12 @@ class Chunk( object ):
             inputsandbox += ",file://%s" % ( input_files )
         # files to add for the outputsandbox
         outputsandbox = "log_%d_${JOB_ID}.tar.gz, events.pkl" % self.chunk_id
-        arguments = '%s %s %d %s %s %d' % ( exp_name, rea_name, self.chunk_id,
+        arguments = '%s %s %d %s %s %d %d' % ( exp_name, rea_name, self.chunk_id,
                                             datetime2datewrf( self.start_date ),
                                             datetime2datewrf( self.end_date ),
-                                            1 if rerun else 0 )
+                                            1 if rerun else 0,
+                                            mode
+                                             )
         # Create the job template
         file_template = gw_job.create_template( name          = rea_name,
                                                 directory     = rea_path,
